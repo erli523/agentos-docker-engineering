@@ -15,7 +15,8 @@ COPY . .
 # ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------
-RUN chmod +x /app/scripts/entrypoint.sh
+# Keep the image executable even when a source archive was produced on Windows.
+RUN sed -i 's/\r$//' /app/scripts/*.sh && chmod +x /app/scripts/entrypoint.sh
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 # ---------------------------------------------------------------------------

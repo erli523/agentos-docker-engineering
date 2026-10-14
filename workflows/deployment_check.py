@@ -92,14 +92,19 @@ def _check_runtime() -> CheckResult:
     return _warn("Runtime", f"Unexpected RUNTIME_ENV={runtime_env!r}; expected 'dev' or 'prd'.")
 
 
-def _check_openai_key() -> CheckResult:
-    """The one env var whose absence every other check survives."""
-    if getenv("OPENAI_API_KEY"):
-        return _pass("OpenAI key", "Set — models, knowledge embeddings, and the registry's media tools.")
+def _check_ai_credentials() -> CheckResult:
+    """Confirm both model and embedding calls have credentials."""
+    openai_key = getenv("OPENAI_API_KEY")
+    model_key = getenv("AGENTOS_MODEL_API_KEY") or openai_key
+    embedding_key = getenv("AGENTOS_EMBEDDING_API_KEY") or openai_key
+    missing = [name for name, value in (("model", model_key), ("embedding", embedding_key)) if not value]
+    if not missing:
+        media = " OpenAI media tools are enabled." if openai_key else " OpenAI media tools remain disabled."
+        return _pass("AI credentials", f"Model and knowledge embedding credentials are set.{media}")
     return _fail(
-        "OpenAI key",
-        "OPENAI_API_KEY is not set: every model call fails, knowledge cannot embed, and the "
-        "registry drops its image and speech tools with no warning.",
+        "AI credentials",
+        f"Missing {', '.join(missing)} credential(s). Set provider-specific AGENTOS_* keys "
+        "or use OPENAI_API_KEY as the shared fallback.",
     )
 
 
@@ -366,7 +371,7 @@ async def deployment_check_step(_step_input: StepInput) -> StepOutput:
     checks = [
         _check_database(),
         _check_runtime(),
-        _check_openai_key(),
+        _check_ai_credentials(),
         _check_agentos_url(),
         await _check_mcp(),
         _check_slack_config(),

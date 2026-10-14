@@ -46,7 +46,7 @@ cd agentos
 
 # Configure credentials
 cp example.env .env
-# Open .env and set OPENAI_API_KEY
+# Open .env and configure OPENAI_API_KEY, or separate compatible model and embedding providers
 
 # Run the platform on docker
 docker compose up -d --build
@@ -106,6 +106,7 @@ Production values live in `.env` on the host — the same file compose already r
 
 ```sh
 OPENAI_API_KEY=sk-...
+# Or set AGENTOS_MODEL_* and AGENTOS_EMBEDDING_* as documented below.
 AGENTOS_URL=https://<your-public-url>
 MCP_CONNECT_SECRET=<generate with: openssl rand -base64 32>
 DB_PASS=<generate a strong one>
@@ -223,6 +224,8 @@ python -m evals --name <case>    # one case while iterating
 python -m evals -v               # stream the full run with rich panels
 ```
 
+Cases with rubric criteria use the same model-provider configuration as the runtime (`AGENTOS_MODEL_*` or the OpenAI fallback), so the judge does not require a second provider account.
+
 If a case fails, run **`/eval-and-improve`** — it diagnoses each failure, fixes what's in scope, and loops until green.
 
 ### Maintain
@@ -233,7 +236,15 @@ Because the repo is managed by coding agents, it moves fast. Run `/review-and-im
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | yes | none | OpenAI key for models and embeddings. |
+| `OPENAI_API_KEY` | conditional | none | Shared OpenAI key for models and embeddings. It is also required for the registry's OpenAI image and speech tools. Provider-specific keys below can replace it for chat and knowledge. |
+| `AGENTOS_MODEL_ID` | no | `gpt-5.6` | Chat model id. |
+| `AGENTOS_MODEL_API_KEY` | conditional | `OPENAI_API_KEY` | Chat provider credential. Required when the shared OpenAI key is absent. |
+| `AGENTOS_MODEL_BASE_URL` | no | none | OpenAI-compatible Chat Completions base URL. When set, AgentOS uses Agno's `OpenAILike`; when absent it preserves the OpenAI Responses default. |
+| `AGENTOS_MODEL_PROVIDER` | no | `OpenAI-compatible` | Display/provider name for a compatible chat endpoint. |
+| `AGENTOS_EMBEDDING_MODEL_ID` | no | `text-embedding-3-small` | Knowledge embedding model id. |
+| `AGENTOS_EMBEDDING_API_KEY` | conditional | `OPENAI_API_KEY` | Embedding provider credential. Required when the shared OpenAI key is absent. |
+| `AGENTOS_EMBEDDING_BASE_URL` | no | none | OpenAI-compatible embeddings base URL. |
+| `AGENTOS_EMBEDDING_DIMENSIONS` | no | provider default | Positive embedding dimension. It must match the provider output and the vector table schema. |
 | `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. `compose.yaml` sets it to `dev` for local; `compose.prod.yaml` sets `prd` — never hand-set `dev` on a production host, or the platform serves unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | none | Public key from os.agno.com. Required when `RUNTIME_ENV=prd`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | none | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
@@ -245,6 +256,8 @@ Because the repo is managed by coding agents, it moves fast. Run `/review-and-im
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | derived | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. Unset, it is derived from the cases the tag selects. Set it to override. |
 | `PARALLEL_API_KEY` | no | none | Authenticates Agno's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). Also the fast route for ingesting a product's docs — clean markdown per page, JS-rendered pages and PDFs included; without it ingestion still works, page by page, just slower. |
+| `ENABLE_AGNO_DOCS_MCP` | no | `True` | Set to `False` to skip the remote Agno documentation MCP during startup, useful on offline or restricted networks. |
+| `ENABLE_WEB_SEARCH` | no | `True` | Set to `False` to omit both Parallel SDK and keyless Parallel MCP web-search tools. |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. The bot token also lights up the registry's send-only Slack toolkit for built agents. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
 | `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |

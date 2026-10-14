@@ -13,15 +13,20 @@ from agno.tools.parallel import ParallelTools
 from agno.tools.slack import SlackTools
 
 from app.knowledge import product_knowledge
+from app.settings import env_enabled
 
 AGNO_DOCS_MCP_URL = "https://docs.agno.com/mcp"
 
 
 def get_agno_docs_tools() -> list[MCPTools]:
+    if not env_enabled("ENABLE_AGNO_DOCS_MCP"):
+        return []
     return [MCPTools(transport="streamable-http", url=AGNO_DOCS_MCP_URL, name="agno_docs")]
 
 
 def get_parallel_tools() -> list[ParallelTools | MCPTools]:
+    if not env_enabled("ENABLE_WEB_SEARCH"):
+        return []
     if getenv("PARALLEL_API_KEY"):
         return [ParallelTools()]
     # timeout_seconds: web_fetch page extraction regularly exceeds the 10s MCP default.

@@ -12,8 +12,6 @@ Agno is a multi-agent team made of:
 The Agno team is available in Slack, claude.ai, ChatGPT, or the AgentOS UI.
 """
 
-from os import getenv
-
 from agno.learn import (
     EntityMemoryConfig,
     LearningMachine,
@@ -22,8 +20,6 @@ from agno.learn import (
     UserProfileConfig,
 )
 from agno.team import Team
-from agno.tools.mcp import MCPTools
-from agno.tools.parallel import ParallelTools
 from agno.tools.studio_runner import StudioRunnerTools
 
 from agents.builder import platform_builder
@@ -33,18 +29,8 @@ from app.notes import notes
 from app.offload import result_store
 from app.registry import registry
 from app.settings import default_model
+from app.tools import get_parallel_tools
 from db import get_postgres_db
-
-# When PARALLEL_API_KEY is set, use the parallel-web SDK.
-# Without a key, fall back to the keyless MCP.
-# AgentOS handles MCP connect/close as part of its lifespan.
-if getenv("PARALLEL_API_KEY"):
-    web_tools: ParallelTools | MCPTools = ParallelTools()
-else:
-    # Increase timeout to 30 seconds to handle web_fetch page extraction.
-    web_tools = MCPTools(
-        url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_tools", timeout_seconds=30
-    )
 
 # The Agno team's memory: per-user profile and memory, and a shared entity store.
 memory = LearningMachine(
@@ -83,7 +69,10 @@ How you remember:
 - You can store notes: reasoning, decisions, anything longer than a line, at notes/<topic>.md, dated.
 - You can store entities: names, links, one-line current values, and note="notes/<topic>.md" where the detail lives.
 - Anyone can read the entities and the notes, so resolve "me", "I", "my" to the speaker's name before filing there.
-- A missing name never blocks a filing: file the rest, ask for the name, and add it when it arrives.
+- A missing name never blocks a filing. Ask for it only when the message uses "me", "I", or "my", or when source
+  attribution is needed; do not turn a simple third-party fact into an identity interview.
+- After a simple remember request, confirm only the fact and that it was recorded. Do not add filing metadata,
+  timestamps, or follow-up questions unless the user asked for them.
 - Corrections: fix every surface in the same turn: the entity line, the note behind it, the speaker's memory.
 - Something shared in confidence goes to user memory, never to a shared entity.
 - Store links where possible, avoid payloads: a page or PDF becomes the link plus your takeaway, five bullets at most.
@@ -119,7 +108,7 @@ agno_team = Team(
     offload_tool_results=result_store,
     # The learning machine attaches its tools, guidance, and recall automatically.
     learning=memory,
-    tools=[notes.tools(), web_tools, studio_runners],
+    tools=[notes.tools(), *get_parallel_tools(), studio_runners],
     members=[platform_builder, platform_manager, platform_engineer],
     instructions=[INSTRUCTIONS, notes.instructions()],
     # Identity fallback for unauthenticated runs (dev MCP, evals).

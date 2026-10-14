@@ -70,7 +70,7 @@ Shared:
 
 ```bash
 cp example.env .env
-# Edit .env and set OPENAI_API_KEY
+# Edit .env and configure OPENAI_API_KEY, or separate compatible model and embedding providers
 
 docker compose up -d --build
 ```
@@ -181,7 +181,7 @@ The eval suite lives in [`evals/`](evals/) and runs on agno's eval suite runner 
 - `release` — broader checks for pre-release confidence.
 - `live` — current web/source checks that are useful but should not be deterministic release gates.
 
-Run with `python -m evals --tag smoke`, `python -m evals --tag release`, or `python -m evals --name <case>`. Add `--json-output out.json` when a workflow or coding agent needs machine-readable results. Results log to Postgres via `db=eval_db` so history is visible at os.agno.com.
+Run with `python -m evals --tag smoke`, `python -m evals --tag release`, or `python -m evals --name <case>`. Add `--json-output out.json` when a workflow or coding agent needs machine-readable results. Results log to Postgres via `db=eval_db` so history is visible at os.agno.com. Rubric-based cases explicitly create their judge with `default_model()`, keeping evals on the runtime's configured provider instead of Agno's OpenAI default.
 
 Two skills work this suite from opposite ends. To author coverage — especially for agents you build, which start with none — run [`/create-evals`](.agents/skills/create-evals/SKILL.md): it maps what an agent promises, mines real sessions from Postgres for scenarios, and writes audited cases into the marked user-cases section of `evals/cases.py`. To diagnose failures and fix in scope, run [`/eval-and-improve`](.agents/skills/eval-and-improve/SKILL.md).
 
@@ -210,7 +210,15 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `OPENAI_API_KEY` | yes | — | OpenAI key for models + embeddings. |
+| `OPENAI_API_KEY` | conditional | — | Shared OpenAI key for models + embeddings and the registry's OpenAI image/speech tools. Provider-specific keys below can replace it for chat and knowledge. |
+| `AGENTOS_MODEL_ID` | no | `gpt-5.6` | Chat model id. |
+| `AGENTOS_MODEL_API_KEY` | conditional | `OPENAI_API_KEY` | Chat provider credential. Required when the shared key is absent. |
+| `AGENTOS_MODEL_BASE_URL` | no | — | OpenAI-compatible Chat Completions base URL. Set it to use Agno `OpenAILike`; omit it to keep the OpenAI Responses adapter. |
+| `AGENTOS_MODEL_PROVIDER` | no | `OpenAI-compatible` | Display/provider name for the compatible chat endpoint. |
+| `AGENTOS_EMBEDDING_MODEL_ID` | no | `text-embedding-3-small` | Knowledge embedding model id. |
+| `AGENTOS_EMBEDDING_API_KEY` | conditional | `OPENAI_API_KEY` | Embedding credential. Required when the shared key is absent. |
+| `AGENTOS_EMBEDDING_BASE_URL` | no | — | OpenAI-compatible embeddings base URL. |
+| `AGENTOS_EMBEDDING_DIMENSIONS` | no | provider default | Positive embedding dimension; it must match the provider output and vector table schema. |
 | `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. `compose.yaml` sets it to `dev` for local; `compose.prod.yaml` sets `prd` — never hand-set `dev` on a production host, or the platform serves unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | — | Public key from os.agno.com. Required when `RUNTIME_ENV=prd` and `authorization=True`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | — | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
@@ -222,6 +230,8 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | derived | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. Unset, it is derived from the cases the tag actually selects (their ceilings plus hook margin), so adding a case never silently outgrows the budget. Set it to override. |
 | `PARALLEL_API_KEY` | no | — | Authenticates Agno's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback with a lower rate ceiling). Also the fast route for ingesting a product's docs (Parallel Extract: clean markdown per page, JS-rendered pages and PDFs); without it the product pattern ingests page by page with `WebsiteReader`, same rows and citations, slower. |
+| `ENABLE_AGNO_DOCS_MCP` | no | `True` | Set `False` to omit the remote Agno documentation MCP during startup on offline or restricted networks. |
+| `ENABLE_WEB_SEARCH` | no | `True` | Set `False` to omit both Parallel SDK and keyless Parallel MCP web-search tools. |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. Also lights up the registry's send-only Slack toolkit (post + list channels), so built agents can be wired to post to Slack. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
