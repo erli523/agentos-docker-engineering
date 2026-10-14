@@ -1,3 +1,5 @@
+> **中文工程实践说明：** 本分支的技术栈、核心思路、自主改动、验证结果和边界见 [PROJECT_OVERVIEW_CN.md](PROJECT_OVERVIEW_CN.md)。
+
 ## AgentOS: Serve agents over API, MCP, and interfaces like Slack
 
 AgentOS is a durable agent runtime that serves agents over API, MCP, and chat interfaces like Slack. Build customer-facing agents and serve them to your users from your product, through AI apps like Claude and ChatGPT, or interfaces like Slack. AgentOS gives you one agent backend for every frontend.
